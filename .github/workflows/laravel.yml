@@ -1,4 +1,4 @@
-name: Deploy to EC2
+name: Laravel Deployment
 
 on:
   push:
@@ -13,24 +13,37 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Set up Docker Compose
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.0'
+
+      - name: Install Composer dependencies
+        run: composer install --no-dev --prefer-dist --no-progress --no-suggest --no-interaction
+
+      - name: Generate application key
+        run: php artisan key:generate
+
+      - name: Run database migrations
+        run: php artisan migrate --force
+
+      - name: Set up Apache
         run: |
           sudo apt-get update
-          sudo apt-get install -y docker-compose
+          sudo apt-get install -y apache2
 
-      - name: Build and deploy with Docker Compose
+      - name: Enable Apache modules
         run: |
-          docker-compose -f docker-compose.yml up -d --build
+          sudo a2enmod rewrite
+          sudo systemctl restart apache2
 
-      - name: SSH into EC2 instance
-        uses: appleboy/ssh-action@master
-        with:
-          host: your-ec2-instance-ip
-          username: ec2-user
-          key: ${{ secrets.YOUR_SSH_PRIVATE_KEY }}
+      - name: Copy Laravel app to Apache document root
+        run: sudo cp -R . /var/www/html/
 
-      - name: Update Docker Compose and restart containers
+      - name: Set appropriate permissions
         run: |
-          scp docker-compose.yml ec2-user@your-ec2-instance-ip:/home/ec2-user/docker-compose.yml
-          ssh ec2-user@your-ec2-instance-ip "docker-compose -f /home/ec2-user/docker-compose.yml down"
-          ssh ec2-user@your-ec2-instance-ip "docker-compose -f /home/ec2-user/docker-compose.yml up -d"
+          sudo chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+          sudo chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
+
+      - name: Restart Apache
+        run: sudo systemctl restart apache2
