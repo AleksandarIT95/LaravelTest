@@ -1,4 +1,4 @@
-name: Laravel Deployment
+name: Deploy to AWS EC2
 
 on:
   push:
@@ -13,37 +13,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Set up PHP
-        uses: shivammathur/setup-php@v2
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v2
         with:
-          php-version: '8.0'
+          context: .
+          file: Dockerfile
+          push: false
+          tags: your-docker-repository/image-name:latest
 
-      - name: Install Composer dependencies
-        run: composer update --no-dev --prefer-dist --no-progress --no-suggest --no-interaction
-
-      - name: Generate application key
-        run: php artisan key:generate
-
-      - name: Run database migrations
-        run: php artisan migrate --force
-
-      - name: Set up Apache
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y apache2
-
-      - name: Enable Apache modules
-        run: |
-          sudo a2enmod rewrite
-          sudo systemctl restart apache2
-
-      - name: Copy Laravel app to Apache document root
-        run: sudo cp -R . /var/www/html/
-
-      - name: Set appropriate permissions
-        run: |
-          sudo chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
-          sudo chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
-
-      - name: Restart Apache
-        run: sudo systemctl restart apache2
+      - name: Deploy to EC2
+        uses: appleboy/scp-action@v0.3.0
+        with:
+          host: your-ec2-instance-ip
+          username: your-ec2-username
+          key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          source: .
+          target: /home/ubuntu/your-app-folder
