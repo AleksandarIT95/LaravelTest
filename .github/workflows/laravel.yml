@@ -1,0 +1,44 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Docker environment
+        uses: docker/setup-docker@v1
+
+      - name: Build Docker image
+        run: |
+          docker build -t your-docker-image .
+
+      - name: Log in to Docker Hub
+        run: |
+          docker login -u ${{ secrets.DOCKER_HUB_USERNAME }} -p ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+      - name: Push Docker image to Docker Hub
+        run: |
+          docker tag your-docker-image:latest your-dockerhub-username/your-dockerhub-repo:latest
+          docker push your-dockerhub-username/your-dockerhub-repo:latest
+
+      - name: SSH into EC2 instance
+        uses: appleboy/ssh-action@master
+        with:
+          host: your-ec2-instance-ip
+          username: ec2-user
+          key: ${{ secrets.YOUR_SSH_PRIVATE_KEY }}
+
+      - name: Update Docker image and run container
+        run: |
+          ssh ec2-user@your-ec2-instance-ip "docker stop your-container-name || true"
+          ssh ec2-user@your-ec2-instance-ip "docker rm your-container-name || true"
+          ssh ec2-user@your-ec2-instance-ip "docker pull your-dockerhub-username/your-dockerhub-repo:latest"
+          ssh ec2-user@your-ec2-instance-ip "docker run -d --name your-container-name -p 80:80 your-dockerhub-username/your-dockerhub-repo:latest"
