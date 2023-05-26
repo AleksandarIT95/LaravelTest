@@ -13,21 +13,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Set up Docker environment
-        uses: docker/setup-docker@v1
-
-      - name: Build Docker image
+      - name: Set up Docker Compose
         run: |
-          docker build -t your-docker-image .
+          sudo apt-get update
+          sudo apt-get install -y docker-compose
 
-      - name: Log in to Docker Hub
+      - name: Build and deploy with Docker Compose
         run: |
-          docker login -u ${{ secrets.DOCKER_HUB_USERNAME }} -p ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
-
-      - name: Push Docker image to Docker Hub
-        run: |
-          docker tag your-docker-image:latest your-dockerhub-username/your-dockerhub-repo:latest
-          docker push your-dockerhub-username/your-dockerhub-repo:latest
+          docker-compose -f docker-compose.yml up -d --build
 
       - name: SSH into EC2 instance
         uses: appleboy/ssh-action@master
@@ -36,9 +29,8 @@ jobs:
           username: ec2-user
           key: ${{ secrets.YOUR_SSH_PRIVATE_KEY }}
 
-      - name: Update Docker image and run container
+      - name: Update Docker Compose and restart containers
         run: |
-          ssh ec2-user@your-ec2-instance-ip "docker stop your-container-name || true"
-          ssh ec2-user@your-ec2-instance-ip "docker rm your-container-name || true"
-          ssh ec2-user@your-ec2-instance-ip "docker pull your-dockerhub-username/your-dockerhub-repo:latest"
-          ssh ec2-user@your-ec2-instance-ip "docker run -d --name your-container-name -p 80:80 your-dockerhub-username/your-dockerhub-repo:latest"
+          scp docker-compose.yml ec2-user@your-ec2-instance-ip:/home/ec2-user/docker-compose.yml
+          ssh ec2-user@your-ec2-instance-ip "docker-compose -f /home/ec2-user/docker-compose.yml down"
+          ssh ec2-user@your-ec2-instance-ip "docker-compose -f /home/ec2-user/docker-compose.yml up -d"
