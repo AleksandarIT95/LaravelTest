@@ -1,37 +1,39 @@
-# Use the official PHP image as the base image
+# Use the official PHP-FPM 7.4 base image
 FROM php:7.4-fpm
 
-# Set the working directory in the container
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    libpng-dev \
+    libonig-dev \
+    libxml2-dev \
+    zip \
+    unzip
+
+# Clear cache
+RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Install PHP extensions
+RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
+
+# Get latest Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# Set working directory
 WORKDIR /var/www/html
 
-# Copy the composer.json and composer.lock files
-COPY composer.json composer.lock ./
+# Copy existing application directory contents
+COPY . /var/www/html
 
-# Install PHP dependencies
-RUN apt-get update && apt-get install -y \
-    git \
-    unzip \
-    && docker-php-ext-install pdo_mysql
+# Install Composer dependencies
+RUN composer install --no-interaction --no-scripts --no-progress
 
-# Install Composer
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+# Generate application key
+RUN php artisan key:generate
 
-# Install application dependencies
-RUN composer install --no-scripts --no-autoloader
+# Set permissions
+RUN chown -R www-data:www-data /var/www/html/storage
 
-# Copy the rest of the application code
-COPY . .
-
-# Generate autoload files
-RUN composer dump-autoload --optimize
-
-# Set permissions for storage and bootstrap cache folders
-RUN chown -R www-data:www-data \
-    storage \
-    bootstrap/cache
-
-# Expose port 9000 to the host
+# Expose port 9000 and start php-fpm server
 EXPOSE 9000
-
-# Start PHP-FPM server
 CMD ["php-fpm"]
