@@ -19,7 +19,7 @@ jobs:
           php-version: '8.0'
 
       - name: Install Composer dependencies
-        run: composer install --no-dev --prefer-dist --no-progress --no-suggest --no-interaction
+        run: composer update --no-dev --prefer-dist --no-progress --no-suggest --no-interaction
 
       - name: Generate application key
         run: php artisan key:generate
