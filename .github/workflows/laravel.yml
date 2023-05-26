@@ -19,7 +19,7 @@ jobs:
           php-version: '8.0'
 
       - name: Install dependencies
-        run: composer install --no-dev --prefer-dist --no-progress --no-interaction
+        run: composer update --no-dev --prefer-dist --no-progress --no-interaction
 
       - name: Deploy to server
         uses: appleboy/ssh-action@master
